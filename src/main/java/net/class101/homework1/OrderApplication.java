@@ -9,8 +9,6 @@ import java.sql.SQLException;
 
 public class OrderApplication {
 
-    DataConnect dataConnect;
-
     public static void main(String[] args) throws IOException, ClassNotFoundException, SQLException {
 
         DataConnect dataConnect = new DataConnect();
@@ -27,5 +25,6 @@ public class OrderApplication {
         }
 
         System.out.println("=============");
+        dataConnect.close();
     }
 }
