@@ -1,6 +1,3 @@
-create table product
-(id int, category varchar(5), name varchar(200), price int, stocks int);
-
 insert into product values
 (16374, 'KLASS', '스마트스토어로 월 100만원 만들기, 평범한 사람이 돈을 만드는 비법', 151950, 99999)
 ,(26825, 'KLASS', '해금, 특별하고 아름다운 나만의 반려악기', 114500, 99999)
