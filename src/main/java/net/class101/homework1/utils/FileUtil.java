@@ -8,6 +8,12 @@ import java.io.IOException;
 
 @UtilityClass
 public class FileUtil {
+    /**
+     * return full text from file
+     * @param resourceFullPath ex) /home/tmp/test.txt
+     * @return String full text
+     * @throws IOException
+     */
     public String fileRead(String resourceFullPath) throws IOException {
         StringBuffer returnStr = new StringBuffer();
         BufferedReader reader = new BufferedReader(new FileReader(resourceFullPath));
