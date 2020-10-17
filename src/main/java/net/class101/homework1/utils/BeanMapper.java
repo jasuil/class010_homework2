@@ -4,7 +4,6 @@ import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -18,9 +17,9 @@ public class BeanMapper {
     /**
      *
      * @param rs result set
-     * @param obj
+     * @param obj new class instance
      * @param <T> class type
-     * @return
+     * @return List<T>
      * @throws SQLException
      * @throws IllegalAccessException
      * @throws InvocationTargetException
