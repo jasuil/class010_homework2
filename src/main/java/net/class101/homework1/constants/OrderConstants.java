@@ -1,8 +1,5 @@
 package net.class101.homework1.constants;
 
-import java.net.PortUnreachableException;
-import java.security.PublicKey;
-
 public class OrderConstants {
     public final static String NOTICE_MSG = "입력(o[order]: 주문, q[quit]: 종료)";
     public final static String PRODUCT_ID_MSG = "상품번호";
@@ -31,4 +28,7 @@ public class OrderConstants {
     public static final int KLASS_ONLY_ONE_IN_CART_ERROR_CODE = 101;
     public static final int DELIVERY_LIMIT = 50000;
     public static final int DELIVERY_FEE = 5000;
+
+    public static final String SOLD_OUT_EXCEPTION_MSG = "SoldOutException";
+    public static final int SOLD_OUT_CODE = 202;
 }

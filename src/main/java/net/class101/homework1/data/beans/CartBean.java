@@ -25,18 +25,4 @@ public class CartBean {
         public Integer amount;
     }
 
-    public void addCart(OrderBean order) throws BizException {
-        boolean isKlassHave = orderList.stream().anyMatch(ord -> {
-            if(ord.getCategory().equals(KLASS_NAME)) {
-                return true;
-            } else {
-                return false;
-            }
-        });
-        if(order.getCategory().equals(KLASS_NAME) && isKlassHave) {
-            throw new BizException(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG, KLASS_ONLY_ONE_IN_CART_ERROR_CODE);
-        } else {
-            orderList.add(order);
-        }
-    }
 }
