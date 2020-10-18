@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,7 +38,7 @@ public class OrderApplication {
         String answer;
 
         selectLoop: while (true) {
-            System.out.println(NOTICE_MSG + " : ");
+            System.out.print("\r" + NOTICE_MSG + " : ");
             answer = br.readLine();
             switch (answer) {
                 case "q":
@@ -64,11 +65,11 @@ public class OrderApplication {
         String answer;
         CartBean.OrderBean orderBean = cartBean.new OrderBean();
 
-        wishLoop: while(true) {
+        while(true) {
             if(wishProduct.getId() == null) {
-                System.out.println(PRODUCT_ID_MSG + " : ");
+                System.out.print("\r" + PRODUCT_ID_MSG + " : ");
             } else {
-                System.out.println(AMOUNT_MSG + " : ");
+                System.out.print("\r" + AMOUNT_MSG + " : ");
             }
 
             answer = br.readLine();
@@ -77,10 +78,9 @@ public class OrderApplication {
                     System.out.println(ORDER_PLEASE_MSG);
                     continue;
                 }
-                System.out.println(PRODUCT_ID_MSG + " : ");
                 System.out.println(CART_MSG + " : ");
                 orderExecute(cartBean);
-                break wishLoop;
+                break;
             }
 
             if(wishProduct.getId() == null) {
@@ -111,7 +111,7 @@ public class OrderApplication {
                         if(matchedProduct.getStock().compareTo(0) < 1) {
                             System.out.println(SOLD_OUT_MSG);
                         } else if(alreadyHave) {
-                            System.out.println(CHANGE_PRODUCT_MSG);
+                            System.out.print("\r" + CHANGE_PRODUCT_MSG);
                             answer = br.readLine();
                             while(true) {//change already having product in wish list?
                                 if (answer.toLowerCase().equals("y")) {
@@ -209,26 +209,56 @@ public class OrderApplication {
         }
         Map<String, Object> sqlSetter = new HashMap<>();
         sqlSetter.put("idList", idList);
+        totalSum(cartBean.getOrderList());
 
         String validateSql = SqlXmlParserUtil.parseSqlXml("selectByIdList", sqlSetter);
-        List<ProductBean> validateList = dataConnect.fetchQuery(validateSql, new ProductBean());
-        for(ProductBean product : validateList) {
-            for (CartBean.OrderBean order : cartBean.getOrderList()) {
-                if (!order.getCategory().equals(KLASS_NAME) && order.getId().equals(product.getId())) {
-                    if (order.getAmount().compareTo(product.getStock()) < 0) {
-                        throw new BizException("SoldOutException");
-                    }
-                    break;//avoid wasting full search
-                }
-            }
-        }
+        findOutSoldOut(validateSql, cartBean);
 
         dataConnect.executeQuery(updateList);
     }
 
     private static void showCartOrder(CartBean cartBean) {
+        System.out.println(PARTITION);
         for(CartBean.OrderBean orderBean : cartBean.getOrderList()){
             System.out.println(orderBean.getName() + HYPHEN_MSG + orderBean.getAmount() + AMOUNT_UNIT_MSG);
+        }
+        System.out.println(PARTITION);
+    }
+
+    private static void totalSum(List<CartBean.OrderBean> orderList) {
+        boolean isKlass = false;
+        Integer totalFee = 0;
+
+        for(CartBean.OrderBean order : orderList) {
+            if(order.getCategory().equals(KLASS_NAME)) {
+                isKlass = true;
+            }
+            totalFee += order.getAmount() * order.getPrice();
+        }
+        DecimalFormat df = new DecimalFormat("#,###");
+
+        System.out.println(TOTAL_SUM_MSG + " : " + df.format(totalFee));
+        System.out.println(PARTITION);
+
+        if(totalFee.compareTo(DELIVERY_LIMIT) < 0 && !isKlass) {
+            totalFee += DELIVERY_FEE;
+        }
+
+        System.out.println(TOTAL_SUM_MSG + " : " + df.format(totalFee));
+        System.out.println(PARTITION);
+    }
+
+    private static void findOutSoldOut(String validateSql, CartBean cartBean) throws SQLException, NoSuchFieldException, InstantiationException, IllegalAccessException, InvocationTargetException, BizException {
+        List<ProductBean> validateList = dataConnect.fetchQuery(validateSql, new ProductBean());
+        for(ProductBean product : validateList) {
+            for (CartBean.OrderBean order : cartBean.getOrderList()) {
+                if (!order.getCategory().equals(KLASS_NAME) && order.getId().equals(product.getId())) {
+                    if (order.getAmount().compareTo(product.getStock()) > 0) {
+                        throw new BizException("SoldOutException");
+                    }
+                    break;//avoid wasting full search
+                }
+            }
         }
     }
 }
