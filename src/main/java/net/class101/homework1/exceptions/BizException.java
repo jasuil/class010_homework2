@@ -12,7 +12,7 @@ public class BizException extends Exception {
         this.errCode = errCode;
     }
 
-    public int getErrCode(){
+    public Integer getErrCode(){
         return this.errCode;
     }
 }

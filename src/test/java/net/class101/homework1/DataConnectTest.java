@@ -8,7 +8,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.sql.*;
 import java.util.List;
 
@@ -33,12 +32,9 @@ public class DataConnectTest {
         stmt.executeBatch();
 
         rs = stmt.executeQuery("select * from product");
-//        while (rs.next()) {
- //           System.out.println("id " + rs.getInt("id") + " name " + rs.getString("name"));
-  //      }
 
         List<ProductBean> list = BeanMapper.beanMap(rs, new ProductBean());
 
-        list.stream().forEach(d -> System.out.println(d.toString()));
+        list.forEach(d -> System.out.println(d.toString()));
     }
 }
