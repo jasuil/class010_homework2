@@ -8,7 +8,6 @@ import net.class101.homework1.utils.SqlXmlParserUtil;
 import org.apache.commons.beanutils.BeanUtils;
 import org.xml.sax.SAXException;
 
-import javax.management.modelmbean.XMLParseException;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -27,7 +26,6 @@ public class OrderApplication {
     static InputStream inputstream;
     static InputStreamReader inputStreamReader;
     static BufferedReader br;
-    static List<ProductBean> productList;
 
     public static void main(String[] args) throws IOException, SQLException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchFieldException, BizException, SAXException, ParserConfigurationException {
 
@@ -101,8 +99,41 @@ public class OrderApplication {
                         System.out.println(ID_NOT_IN_LIST_MSG);
                         continue;
                     } else {
-                        orderBean.setId(inputId);
-                        BeanUtils.copyProperties(wishProduct, matchList.get(0));
+                        ProductBean matchedProduct = matchList.get(0);
+                        boolean alreadyHave = cartBean.getOrderList().stream().anyMatch(product -> {
+                            if(product.getId().equals(inputId)) {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        });
+
+                        if(matchedProduct.getStock().compareTo(0) < 1) {
+                            System.out.println(SOLD_OUT_MSG);
+                        } else if(alreadyHave) {
+                            System.out.println(CHANGE_PRODUCT_MSG);
+                            answer = br.readLine();
+                            while(true) {//change already having product in wish list?
+                                if (answer.toLowerCase().equals("y")) {
+                                    orderBean.setId(inputId);
+                                    BeanUtils.copyProperties(wishProduct, matchedProduct);
+                                    CartBean.OrderBean removeOrder = null;
+                                    for(CartBean.OrderBean order : cartBean.getOrderList()) {
+                                        if(order.getId().equals(matchedProduct.getId())) {
+                                            removeOrder = order;
+                                        }
+                                    }
+                                    cartBean.getOrderList().remove(removeOrder);
+                                    break;
+                                } else if(answer.toLowerCase().equals("n")) {
+                                    break;
+                                }
+                            }
+
+                        } else {
+                            orderBean.setId(inputId);
+                            BeanUtils.copyProperties(wishProduct, matchedProduct);
+                        }
                     }
                 } catch(NumberFormatException e) {
                     System.out.println(ID_INPUT_PLEASE_MSG);
@@ -124,7 +155,7 @@ public class OrderApplication {
                         continue;
                     } else {
                         BeanUtils.copyProperties(orderBean, wishProduct);
-                        orderBean.setAmount(wishProduct.getStock());
+                        orderBean.setAmount(amount);
                         wishProduct = new ProductBean();
                     }
 

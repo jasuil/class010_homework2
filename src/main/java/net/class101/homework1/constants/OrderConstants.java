@@ -18,6 +18,8 @@ public class OrderConstants {
     public final static String ID_INPUT_PLEASE_MSG = "상품번호를 입력하세요";
     public final static String AMOUNT_LESS_THAN_STOCK_MSG = "수량은 재고수 이하로만 입력하세요";
     public final static String AMOUNT_IS_NATURAL_NUMBER_MSG = "수량을 0이상의 숫자로 입력하세요";
+    public final static String SOLD_OUT_MSG = "재고가 모두 소진되었습니다.";
+    public final static String CHANGE_PRODUCT_MSG = "카트에 같은 물건이 있습니다. 바꾸시겠습니까? (y/n)";
 
     public static final String KLASS_NAME = "KLASS";
     public static final String KLASS_ONLY_ONE_IN_CART_MSG = " 종류는 1개만 담으실 수 있습니다.";
