@@ -3,12 +3,18 @@ package net.class101.homework1.data.beans;
 import lombok.Data;
 import net.class101.homework1.exceptions.BizException;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import static net.class101.homework1.constants.OrderConstants.*;
 
 @Data
 public class CartBean {
-    static final String KLASS_NAME = "KLASS";
     List<OrderBean> orderList;
+
+    public CartBean() {
+        orderList = new ArrayList<>();
+    }
 
     @Data
     public class OrderBean {
@@ -16,7 +22,7 @@ public class CartBean {
         public String name;
         public String category;
         public Integer price;
-        public Integer stock;
+        public Integer amount;
     }
 
     public void addCart(OrderBean order) throws BizException {
@@ -28,7 +34,7 @@ public class CartBean {
             }
         });
         if(order.getCategory().equals(KLASS_NAME) && isKlassHave) {
-            throw new BizException(KLASS_NAME + " 종류는 1개만 담으실 수 있습니다.");
+            throw new BizException(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG, KLASS_ONLY_ONE_IN_CART_ERROR_CODE);
         } else {
             orderList.add(order);
         }

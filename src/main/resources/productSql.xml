@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sql>
+    <select id="selectAll">
+        select * from product;
+    </select>
+    <select id="selectByIdList">
+        select * from product where id in ( {idList} );
+    </select>
+    <update id="stockUpdate">
+        update product set stock = stock - {stock} where id = {id};
+    </update>
+</sql>

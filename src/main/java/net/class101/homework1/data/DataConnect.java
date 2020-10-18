@@ -1,12 +1,10 @@
-package net.class101.homework1;
+package net.class101.homework1.data;
 
 import net.class101.homework1.utils.BeanMapper;
 import net.class101.homework1.utils.FileUtil;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.sql.*;
 import java.util.List;
 
@@ -46,6 +44,27 @@ public class DataConnect {
         stmt.close();
     }
 
+    public void executeQuery(List<String> sqlList) throws SQLException {
+        stmt = conn.createStatement();
+        for(String sql : sqlList) {
+            stmt.addBatch(sql);
+        }
+        stmt.executeBatch();
+        stmt.close();
+    }
+
+    /**
+     *
+     * @param sql
+     * @param object new instance for return class
+     * @param <T> return class type
+     * @return List of the object type
+     * @throws SQLException
+     * @throws InvocationTargetException
+     * @throws NoSuchFieldException
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
     public <T> List<T> fetchQuery(String sql, T object) throws SQLException, InvocationTargetException, NoSuchFieldException, InstantiationException, IllegalAccessException {
         stmt = conn.createStatement();
         rs = stmt.executeQuery(sql);
