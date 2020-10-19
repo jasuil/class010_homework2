@@ -129,6 +129,8 @@ public class Order {
                     }
                 });
 
+                klassValidation(matchedProductBean, cartBean.getOrderList());
+
                 if(matchedProductBean.getStock().compareTo(0) < 1) {
                     System.out.println(SOLD_OUT_MSG);
                 } else if(alreadyHave) {
@@ -171,7 +173,7 @@ public class Order {
 
     }
 
-    public void klassValidation(ProductBean matchedProduct, List<CartBean.OrderBean> orderList) throws BizException {
+    private void klassValidation(ProductBean matchedProductBean, List<CartBean.OrderBean> orderList) throws BizException {
         boolean isKlassHave = orderList.stream().anyMatch(ord -> {
             if(ord.getCategory().equals(KLASS_NAME)) {
                 return true;
@@ -179,8 +181,7 @@ public class Order {
                 return false;
             }
         });
-        if(matchedProduct != null && matchedProduct.getCategory() != null &&
-                matchedProduct.getCategory().equals(KLASS_NAME) && isKlassHave) {
+        if(matchedProductBean.getCategory().equals(KLASS_NAME) && isKlassHave) {
             throw new BizException(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG, KLASS_ONLY_ONE_IN_CART_ERROR_CODE);
         }
     }
@@ -198,24 +199,24 @@ public class Order {
 
         try {
             Integer amount = Integer.valueOf(answer);
-            Integer stock = wishProduct.getStock();
 
             if(amount.compareTo(0) < 1) {
                 System.out.println(AMOUNT_IS_NATURAL_NUMBER_MSG);
+            } else if(wishProduct.getCategory().equals(KLASS_NAME) && amount.compareTo(1) != 0) {
+                System.out.println(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG);
             } else if (wishProduct.getStock().compareTo(amount) < 0) {
                 System.out.println(AMOUNT_LESS_THAN_STOCK_MSG);
             } else {
                 BeanUtils.copyProperties(orderBean, wishProduct);
                 orderBean.setAmount(amount);
                 BeanUtils.copyProperties(wishProduct, new ProductBean());
+
+                //move it to the cart bean
+                CartBean.OrderBean cpBean = cartBean.new OrderBean();
+                BeanUtils.copyProperties(cpBean, orderBean);
+                BeanUtils.copyProperties(orderBean, cartBean.new OrderBean());
+                cartBean.getOrderList().add(cpBean);
             }
-
-            //move it to the cart bean
-            CartBean.OrderBean cpBean = cartBean.new OrderBean();
-            BeanUtils.copyProperties(cpBean, orderBean);
-            BeanUtils.copyProperties(orderBean, cartBean.new OrderBean());
-            cartBean.getOrderList().add(cpBean);
-
         } catch(NumberFormatException e) {
             System.out.println(AMOUNT_IS_NATURAL_NUMBER_MSG);
         }
