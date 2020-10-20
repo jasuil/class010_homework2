@@ -3,31 +3,28 @@ package net.class101.homework1;
 import net.class101.homework1.data.DataConnect;
 import net.class101.homework1.data.beans.CartBean;
 import net.class101.homework1.data.beans.ProductBean;
-import net.class101.homework1.exceptions.BizException;
-import net.class101.homework1.utils.SqlXmlParserUtil;
-import org.apache.commons.beanutils.BeanUtils;
 import org.junit.Assert;
 import org.junit.Test;
-import org.xml.sax.SAXException;
 
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.sql.SQLException;
+import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static net.class101.homework1.constants.OrderConstants.*;
 
 public class OrderTest {
     static DataConnect dataConnect;
+    Order testClass;
+    public OrderTest() {
+        testClass = new Order();
+    }
 
-    private List<CartBean.OrderBean> totalSumTestSetUp() {
+    @Test
+    public void totalSumTest() {
         List<CartBean.OrderBean> orderList = new ArrayList<>();
         CartBean cart = new CartBean();
         CartBean.OrderBean order = cart.new OrderBean();
@@ -35,43 +32,126 @@ public class OrderTest {
         order.setPrice(4000);
         order.setCategory("KIT");
         orderList.add(order);
-        return orderList;
-    }
-
-    @Test
-    public void totalSumTest() {
-        List<CartBean.OrderBean> orderList = totalSumTestSetUp();
 
         boolean isKlass = false;
         Integer totalFee = 0;
-        for(CartBean.OrderBean order : orderList) {
-            if(order.getCategory().equals(KLASS_NAME)) {
+
+        for(CartBean.OrderBean orderBean : orderList) {
+            if(orderBean.getCategory().equals(KLASS_NAME)) {
                 isKlass = true;
             }
             totalFee += order.getAmount() * order.getPrice();
         }
         DecimalFormat df = new DecimalFormat("#,###");
 
-        System.out.println(TOTAL_SUM_MSG + " : " + df.format(totalFee));
-        System.out.println(PARTITION);
         if(totalFee.compareTo(DELIVERY_LIMIT) < 0 && !isKlass) {
             totalFee += DELIVERY_FEE;
         }
+        Assert.assertEquals(Integer.valueOf(45000), totalFee);
+    }
 
-        System.out.println(TOTAL_SUM_MSG + " : " + df.format(totalFee));
-        System.out.println(PARTITION);
+    /**
+     * multi thread test prepare
+     */
+    private List<CartBean> executePurchaseFailSetUp() {
+        List<CartBean> cartBeanList = new ArrayList<>();
+        for(int i = 0; i < 3; i++) {
+            CartBean cartBean = new CartBean();
+            List<CartBean.OrderBean> orderList = new ArrayList<>();
+            CartBean.OrderBean order = cartBean.new OrderBean();
+            order.setAmount(2);
+            order.setPrice(135800);
+            order.setCategory("KIT");
+            order.setName("시작에 대한 부담을 덜다. 가격 절약 아이패드 특가전");
+            order.setId(60538);
+            orderList.add(order);
+            cartBean.setOrderList(orderList);
+            cartBeanList.add(cartBean);
+        }
+
+        return cartBeanList;
     }
 
 
     /**
-     * put klass which is in cart into cart test
+     * multi thread test
+     * expect is biz exception with SoldOutException message
+     */
+    @Test
+    public void orderExecuteFailTest() {
+
+        List<CartBean> cartBeanList = executePurchaseFailSetUp();
+        AtomicReference<Boolean> failSuccess = new AtomicReference<>(false);
+        AtomicBoolean testOk = new AtomicBoolean(false);
+
+        cartBeanList.parallelStream().forEach(order -> {
+            try {
+                Method testMethod = testClass.getClass().getDeclaredMethod("orderExecute", CartBean.class);
+                testMethod.setAccessible(true);
+
+                testMethod.invoke(testClass, order);
+                //orderExecute(order);
+
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                if(e.getCause().getMessage().equals(SOLD_OUT_EXCEPTION_MSG)) {
+                    testOk.set(true);
+                }
+
+            }
+        });
+
+        Assert.assertTrue(testOk.get());
+    }
+
+    @Test
+    public void klassValidationTest() {
+
+        ProductBean productBean = new ProductBean();
+        productBean.setCategory(KLASS_NAME);
+        productBean.setStock(9999);
+        productBean.setId(1);
+        productBean.setName("test klass");
+
+        CartBean cartBean = new CartBean();
+        CartBean.OrderBean orderBean = cartBean.new OrderBean();
+        orderBean.setName("this is not klass");
+        orderBean.setCategory("KIT");
+        orderBean.setId(1);
+        orderBean.setAmount(2);
+        List<CartBean.OrderBean> orderBeanList = new ArrayList<>();
+        orderBeanList.add(orderBean);
+
+        orderBean = cartBean.new OrderBean();
+        orderBean.setCategory(KLASS_NAME);
+        orderBean.setAmount(9999);
+        orderBean.setId(1);
+        orderBean.setName("test klass");
+        orderBeanList.add(orderBean);
+        cartBean.setOrderList(orderBeanList);
+
+        boolean testOk = false;
+        try {
+            Method testMethod = testClass.getClass().getDeclaredMethod("klassValidation", ProductBean.class, List.class);
+            testMethod.setAccessible(true);
+
+            testMethod.invoke(testClass, productBean, orderBeanList);
+        } catch (Exception e) {
+            if(e.getCause().getLocalizedMessage().equals(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG)) {
+                testOk = true;
+            }
+        }
+        Assert.assertTrue(testOk);
+    }
+
+
+    /**
+     * KLASS product reduplication test
+     * expected: wish product is null
      * @throws InvocationTargetException
      * @throws IllegalAccessException
      */
     @Test
-    public void validateOnProductNameTest()
-            throws InvocationTargetException, IllegalAccessException {
-
+    public void validateOnProductNameTest() throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
         List<ProductBean> productList = new ArrayList<>(); //wish product put into the cart
         ProductBean productBean = new ProductBean();
         productBean.setCategory(KLASS_NAME);
@@ -87,7 +167,7 @@ public class OrderTest {
         productBean.setName("test klass4");
         productList.add(productBean);
 
-        String answer = "2";
+        String answer = "4";
 
         CartBean cartBean = new CartBean();
         CartBean.OrderBean orderBean = cartBean.new OrderBean();
@@ -107,209 +187,55 @@ public class OrderTest {
         cartBean.setOrderList(orderBeanList);
 
         ProductBean wishProductBean = new ProductBean();
-        boolean testOk = false;
 
-        try {
-            Integer inputId = Integer.valueOf(answer);
-            List<ProductBean> matchList = productList.stream().filter(product -> {
-                if(product.getId().equals(inputId)) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }).collect(Collectors.toList());
+        Method testMethod = testClass.getClass().getDeclaredMethod("validateOnProductName", List.class, String.class, CartBean.class, CartBean.OrderBean.class, ProductBean.class);
+        testMethod.setAccessible(true);
+        testMethod.invoke(testClass, productList, answer, cartBean, orderBean, wishProductBean);
 
-            if(matchList.size() == 0) {
-                System.out.println(ID_NOT_IN_LIST_MSG);
-            } else {
-                ProductBean matchedProductBean = matchList.get(0);
-                boolean alreadyHave = cartBean.getOrderList().stream().anyMatch(product -> {
-                    if(product.getId().equals(inputId)) {
-                        return true;
-                    } else {
-                        return false;
-                    }
-                });
-
-                klassValidation(matchedProductBean, cartBean.getOrderList());
-
-                if(matchedProductBean.getStock().compareTo(0) < 1) {
-                    System.out.println(SOLD_OUT_MSG);
-                } else if(alreadyHave) {
-                    System.out.print("\r" + CHANGE_PRODUCT_MSG);
-                    answer = "y";
-                    while(true) {//change already having product in wish list?
-                        if (answer.toLowerCase().equals("y")) {
-                            orderBean.setId(inputId);
-                            BeanUtils.copyProperties(wishProductBean, matchedProductBean);
-                            CartBean.OrderBean removeOrder = null;
-                            for(CartBean.OrderBean order : cartBean.getOrderList()) {
-                                if(order.getId().equals(matchedProductBean.getId())) {
-                                    removeOrder = order;
-                                }
-                            }
-                            cartBean.getOrderList().remove(removeOrder);
-                            break;
-                        } else if(answer.toLowerCase().equals("n")) {
-                            break;
-                        }
-                    }
-
-                } else {
-                    klassValidation(matchedProductBean, cartBean.getOrderList());
-                    orderBean.setId(inputId);
-                    BeanUtils.copyProperties(wishProductBean, matchedProductBean);
-                }
-            }
-
-        } catch(NumberFormatException | IllegalAccessException | InvocationTargetException e) {
-            System.out.println(ID_INPUT_PLEASE_MSG);
-
-        } catch (BizException e) {
-            if(e.getErrCode().equals(KLASS_ONLY_ONE_IN_CART_ERROR_CODE)) {
-                //BeanUtils.copyProperties(orderBean, cartBean.new OrderBean());
-                //BeanUtils.copyProperties(wishProduct, new ProductBean());
-                testOk = true;
-                System.out.println(e.getMessage());
-            }
-        }
-
-        Assert.assertTrue(testOk);
+        Assert.assertNull(wishProductBean.getId());
     }
-
-    private void klassValidation(ProductBean matchedProductBean, List<CartBean.OrderBean> orderList) throws BizException {
-        boolean isKlassHave = orderList.stream().anyMatch(ord -> {
-            if(ord.getCategory().equals(KLASS_NAME)) {
-                return true;
-            } else {
-                return false;
-            }
-        });
-        if(matchedProductBean.getCategory().equals(KLASS_NAME) && isKlassHave) {
-            throw new BizException(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG, KLASS_ONLY_ONE_IN_CART_ERROR_CODE);
-        }
-    }
-
     /**
-     * multi thread test prepare
-     */
-    private List<CartBean> executePurchaseFailSetUp() {
-        List<CartBean> cartBeanList = new ArrayList<>();
-        for(int i = 0; i < 3; i++) {
-            CartBean cartBean = new CartBean();
-            List<CartBean.OrderBean> orderList = new ArrayList<>();
-            CartBean.OrderBean order = cartBean.new OrderBean();
-            order.setAmount(3);
-            order.setPrice(135800);
-            order.setCategory("KIT");
-            order.setName("시작에 대한 부담을 덜다. 가격 절약 아이패드 특가전");
-            order.setId(60538);
-            orderList.add(order);
-            cartBean.setOrderList(orderList);
-            cartBeanList.add(cartBean);
-        }
-
-        return cartBeanList;
-    }
-
-
-    /**
-     * multi thread test
-     * expect is biz exception with SoldOutException message
+     * expect: import wish product to cart bean
      */
     @Test
-    public void executePurchaseFailTest() throws SQLException {
-        dataConnect = new DataConnect();
-        List<CartBean> cartBeanList = executePurchaseFailSetUp();
-        AtomicReference<Boolean> failSuccess = new AtomicReference<>(false);
+    public void validateOnAmountTest() {
+        String answer = "1";
 
-        cartBeanList.parallelStream().forEach(order -> {
-            try {
-                orderExecute(order);
-            } catch (SQLException | InstantiationException |
-                    SAXException | NoSuchFieldException | ParserConfigurationException |
-                    IllegalAccessException | InvocationTargetException | IOException e) {
-                e.printStackTrace();
-            } catch (BizException e) {
-                failSuccess.set(true);
-            }
-        });
+        CartBean cartBean = new CartBean();
+        CartBean.OrderBean orderBean = cartBean.new OrderBean();
+        orderBean.setName("this is not klass");
+        orderBean.setCategory("KIT");
+        orderBean.setId(1);
+        orderBean.setAmount(2);
+        List<CartBean.OrderBean> orderBeanList = new ArrayList<>();
+        orderBeanList.add(orderBean);
 
-        dataConnect.close();
-        Assert.assertEquals(failSuccess.get(), true);
-    }
+        orderBean = cartBean.new OrderBean();
+        orderBean.setCategory(KLASS_NAME);
+        orderBean.setAmount(9999);
+        orderBean.setId(1);
+        orderBean.setName("test klass");
 
-    synchronized private void orderExecute(CartBean cartBean) throws SQLException, NoSuchFieldException,
-            InstantiationException, IllegalAccessException, InvocationTargetException, ParserConfigurationException,
-            SAXException, BizException, IOException {
+        ProductBean wishProductBean = new ProductBean();
+        wishProductBean.setName("test");
+        wishProductBean.setId(1212);
+        wishProductBean.setCategory(KLASS_NAME);
+        wishProductBean.setStock(99999);
+        wishProductBean.setPrice(2000);
 
-        showCartOrder(cartBean);
+        boolean testOk = false;
+        Object o = null;
+        try {
+            Method testMethod = testClass.getClass().getDeclaredMethod("validateOnAmount", String.class, ProductBean.class, CartBean.class, CartBean.OrderBean.class);
+            testMethod.setAccessible(true);
 
-        List<String> updateList = new ArrayList<>();
-        List<Integer> idList = new ArrayList<>();
-        for(CartBean.OrderBean orderBean : cartBean.getOrderList()) {
-            if(!orderBean.getCategory().equals(KLASS_NAME)) {
-                Map<String, Object> sqlSetter = new HashMap<>();
-                sqlSetter.put("id", orderBean.getId());
-                sqlSetter.put("stock", orderBean.getAmount());
-                String sql = SqlXmlParserUtil.parseSqlXml("stockUpdate", sqlSetter);
-                updateList.add(sql);
-                idList.add(orderBean.getId());
-            }
-        }
-        Map<String, Object> sqlSetter = new HashMap<>();
-        sqlSetter.put("idList", idList);
-        totalSum(cartBean.getOrderList());
+            o = testMethod.invoke(testClass, answer, wishProductBean, cartBean, orderBean);
 
-        String validateSql = SqlXmlParserUtil.parseSqlXml("selectByIdList", sqlSetter);
-        findOutSoldOut(validateSql, cartBean);
-
-        dataConnect.executeQuery(updateList);
-    }
-
-    private void showCartOrder(CartBean cartBean) {
-        System.out.println(PARTITION);
-        for(CartBean.OrderBean orderBean : cartBean.getOrderList()){
-            System.out.println(orderBean.getName() + HYPHEN_MSG + orderBean.getAmount() + AMOUNT_UNIT_MSG);
-        }
-        System.out.println(PARTITION);
-    }
-
-    private void totalSum(List<CartBean.OrderBean> orderList) {
-        boolean isKlass = false;
-        Integer totalFee = 0;
-
-        for(CartBean.OrderBean order : orderList) {
-            if(order.getCategory().equals(KLASS_NAME)) {
-                isKlass = true;
-            }
-            totalFee += order.getAmount() * order.getPrice();
-        }
-        DecimalFormat df = new DecimalFormat("#,###");
-
-        System.out.println(TOTAL_SUM_MSG + " : " + df.format(totalFee));
-        System.out.println(PARTITION);
-
-        if(totalFee.compareTo(DELIVERY_LIMIT) < 0 && !isKlass) {
-            totalFee += DELIVERY_FEE;
-        }
-
-        System.out.println(TOTAL_SUM_MSG + " : " + df.format(totalFee));
-        System.out.println(PARTITION);
-    }
-
-    private void findOutSoldOut(String validateSql, CartBean cartBean) throws SQLException, NoSuchFieldException, InstantiationException, IllegalAccessException, InvocationTargetException, BizException {
-        List<ProductBean> validateList = dataConnect.fetchQuery(validateSql, new ProductBean());
-        for(ProductBean product : validateList) {
-            for (CartBean.OrderBean order : cartBean.getOrderList()) {
-                if (!order.getCategory().equals(KLASS_NAME) && order.getId().equals(product.getId())) {
-                    if (order.getAmount().compareTo(product.getStock()) > 0) {
-                        throw new BizException(SOLD_OUT_EXCEPTION_MSG, SOLD_OUT_CODE);
-                    }
-                    break;//avoid wasting full search
-                }
+        } catch (Exception e) {
+            if (e.getCause().getLocalizedMessage().equals(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG)) {
+                testOk = true;
             }
         }
+        Assert.assertEquals(1, cartBean.getOrderList().size());
     }
-
 }

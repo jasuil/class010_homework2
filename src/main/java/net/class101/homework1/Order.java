@@ -31,9 +31,11 @@ public class Order {
     static InputStreamReader inputStreamReader;
     static BufferedReader br;
 
-    public void main() throws IOException, SQLException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchFieldException, BizException, SAXException, ParserConfigurationException {
-
+    static {
         dataConnect = new DataConnect();
+    }
+
+    public void main() throws IOException, SQLException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchFieldException, BizException, SAXException, ParserConfigurationException {
 
         inputstream = System.in;
         inputStreamReader = new InputStreamReader(inputstream);
@@ -70,7 +72,7 @@ public class Order {
         List<ProductBean> productList = dataConnect.fetchQuery(SqlXmlParserUtil.parseSqlXml("selectAll", new HashMap<>()), new ProductBean());
         productList.forEach(d -> System.out.println(d.getId() + "\t" + d.getName() + "\t" + d.getPrice() + "\t" + d.getStock()));
         String answer;
-        CartBean.OrderBean orderBean = cartBean.new OrderBean();
+        CartBean.OrderBean orderBean = cartBean.new OrderBean(); //product in cart
 
         while(true) {
             if(wishProductBean.getId() == null) {
@@ -98,8 +100,8 @@ public class Order {
 
     /**
      *
-     * @param productList
-     * @param answer
+     * @param productList all product list
+     * @param answer product id
      * @param cartBean
      * @param orderBean
      * @param wishProductBean
