@@ -1,39 +1,43 @@
 package net.class101.homework1;
 
-import net.class101.homework1.data.DataConnect;
 import net.class101.homework1.data.beans.CartBean;
-import net.class101.homework1.data.beans.ProductBean;
+import net.class101.homework1.data.beans.Product;
+import net.class101.homework1.data.repository.ProductRepository;
 import net.class101.homework1.exceptions.BizException;
-import net.class101.homework1.utils.SqlXmlParserUtil;
-import org.apache.commons.beanutils.BeanUtils;
-import org.xml.sax.SAXException;
 
-import javax.xml.parsers.ParserConfigurationException;
+import org.apache.commons.beanutils.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
-import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.lang.System.exit;
 import static net.class101.homework1.constants.OrderConstants.*;
-import static net.class101.homework1.constants.OrderConstants.SOLD_OUT_CODE;
 
-public class Order {
-    static DataConnect dataConnect;
+@Service
+public class OrderService implements CommandLineRunner {
+
     static InputStream inputstream;
     static InputStreamReader inputStreamReader;
     static BufferedReader br;
 
-    public void main() throws IOException, SQLException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchFieldException, BizException, SAXException, ParserConfigurationException {
+    @Autowired
+    private ProductRepository productRepository;
 
-        dataConnect = new DataConnect();
+    @Value(value = "${class.test}")
+    boolean isTest;
+
+    public void main() throws IOException, InvocationTargetException, IllegalAccessException {
 
         inputstream = System.in;
         inputStreamReader = new InputStreamReader(inputstream);
@@ -41,8 +45,10 @@ public class Order {
         String answer;
 
         selectLoop: while (true) {
+
             System.out.print("\r" + NOTICE_MSG + " : ");
             answer = br.readLine();
+
             switch (answer) {
                 case "q":
                     break selectLoop;
@@ -60,20 +66,19 @@ public class Order {
         inputstream.close();
 
         System.out.println(END_MSG);
-        dataConnect.close();
     }
 
-    private String orderProcessor(CartBean cartBean) throws SQLException, NoSuchFieldException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, BizException, SAXException, ParserConfigurationException {
-        ProductBean wishProductBean = new ProductBean();//before putting into the cart
+    private String orderProcessor(CartBean cartBean) throws IllegalAccessException, InvocationTargetException, IOException {
+        Product wishProduct = new Product();//before putting into the cart
 
         System.out.println(PRODUCT_ID_MSG + "\t" + PRODUCT_NAME_MSG + "\t" + PRICE_MSG + "\t" + STOCK_MSG);
-        List<ProductBean> productList = dataConnect.fetchQuery(SqlXmlParserUtil.parseSqlXml("selectAll", new HashMap<>()), new ProductBean());
+        List<Product> productList = (List<Product>) productRepository.findAll();
         productList.forEach(d -> System.out.println(d.getId() + "\t" + d.getName() + "\t" + d.getPrice() + "\t" + d.getStock()));
         String answer;
-        CartBean.OrderBean orderBean = cartBean.new OrderBean();
+        CartBean.OrderBean orderBean = cartBean.new OrderBean(); //product in cart
 
         while(true) {
-            if(wishProductBean.getId() == null) {
+            if(wishProduct.getId() == null) {
                 System.out.print("\r" + PRODUCT_ID_MSG + " : ");
             } else {
                 System.out.print("\r" + AMOUNT_MSG + " : ");
@@ -83,14 +88,14 @@ public class Order {
             if(answer.equals("q")) {
                 return "q";
             }
-            if(wishProductBean.getId() == null && answer.equals(" ")) {
+            if(wishProduct.getId() == null && answer.equals(" ") && cartBean.getOrderList().size() > 0) {
                 executePurchase(cartBean);
                 break;
             }
-            if(wishProductBean.getId() == null) {
-                validateOnProductName(productList, answer, cartBean, orderBean, wishProductBean);
-            } else if(wishProductBean.getId() != null) {
-                validateOnAmount(answer, wishProductBean, cartBean, orderBean);
+            if(wishProduct.getId() == null) {
+                validateOnProductName(productList, answer, cartBean, orderBean, wishProduct);
+            } else if(wishProduct.getId() != null) {
+                validateOnAmount(answer, wishProduct, cartBean, orderBean);
             }
         }
         return null;
@@ -98,18 +103,17 @@ public class Order {
 
     /**
      *
-     * @param productList
-     * @param answer
+     * @param productList all product list
+     * @param answer product id
      * @param cartBean
      * @param orderBean
-     * @param wishProductBean
+     * @param wishProduct
      */
-    private void validateOnProductName(List<ProductBean> productList, String answer, CartBean cartBean, CartBean.OrderBean orderBean, ProductBean wishProductBean)
-            throws InvocationTargetException, IllegalAccessException {
+    private void validateOnProductName(List<Product> productList, String answer, CartBean cartBean, CartBean.OrderBean orderBean, Product wishProduct) {
 
         try {
             Integer inputId = Integer.valueOf(answer);
-            List<ProductBean> matchList = productList.stream().filter(product -> {
+            List<Product> matchList = productList.stream().filter(product -> {
                 if(product.getId().equals(inputId)) {
                     return true;
                 } else {
@@ -120,7 +124,7 @@ public class Order {
             if(matchList.size() == 0) {
                 System.out.println(ID_NOT_IN_LIST_MSG);
             } else {
-                ProductBean matchedProductBean = matchList.get(0);
+                Product matchedProduct = matchList.get(0);
                 boolean alreadyHave = cartBean.getOrderList().stream().anyMatch(product -> {
                     if(product.getId().equals(inputId)) {
                         return true;
@@ -129,7 +133,9 @@ public class Order {
                     }
                 });
 
-                if(matchedProductBean.getStock().compareTo(0) < 1) {
+                klassValidation(matchedProduct, cartBean.getOrderList());
+
+                if(matchedProduct.getStock().compareTo(0) < 1) {
                     System.out.println(SOLD_OUT_MSG);
                 } else if(alreadyHave) {
                     System.out.print("\r" + CHANGE_PRODUCT_MSG);
@@ -137,10 +143,10 @@ public class Order {
                     while(true) {//change already having product in wish list?
                         if (answer.toLowerCase().equals("y")) {
                             orderBean.setId(inputId);
-                            BeanUtils.copyProperties(wishProductBean, matchedProductBean);
+                            BeanUtils.copyProperties(wishProduct, matchedProduct);
                             CartBean.OrderBean removeOrder = null;
                             for(CartBean.OrderBean order : cartBean.getOrderList()) {
-                                if(order.getId().equals(matchedProductBean.getId())) {
+                                if(order.getId().equals(matchedProduct.getId())) {
                                     removeOrder = order;
                                 }
                             }
@@ -152,9 +158,9 @@ public class Order {
                     }
 
                 } else {
-                    klassValidation(matchedProductBean, cartBean.getOrderList());
+                    klassValidation(matchedProduct, cartBean.getOrderList());
                     orderBean.setId(inputId);
-                    BeanUtils.copyProperties(wishProductBean, matchedProductBean);
+                    BeanUtils.copyProperties(wishProduct, matchedProduct);
                 }
             }
 
@@ -163,15 +169,13 @@ public class Order {
 
         } catch (BizException e) {
             if(e.getErrCode().equals(KLASS_ONLY_ONE_IN_CART_ERROR_CODE)) {
-                //BeanUtils.copyProperties(orderBean, cartBean.new OrderBean());
-                //BeanUtils.copyProperties(wishProduct, new ProductBean());
                 System.out.println(e.getMessage());
             }
         }
 
     }
 
-    public void klassValidation(ProductBean matchedProduct, List<CartBean.OrderBean> orderList) throws BizException {
+    private void klassValidation(Product matchedProduct, List<CartBean.OrderBean> orderList) throws BizException {
         boolean isKlassHave = orderList.stream().anyMatch(ord -> {
             if(ord.getCategory().equals(KLASS_NAME)) {
                 return true;
@@ -179,8 +183,7 @@ public class Order {
                 return false;
             }
         });
-        if(matchedProduct != null && matchedProduct.getCategory() != null &&
-                matchedProduct.getCategory().equals(KLASS_NAME) && isKlassHave) {
+        if(matchedProduct.getCategory().equals(KLASS_NAME) && isKlassHave) {
             throw new BizException(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG, KLASS_ONLY_ONE_IN_CART_ERROR_CODE);
         }
     }
@@ -193,29 +196,29 @@ public class Order {
      * @throws InvocationTargetException
      * @throws IllegalAccessException
      */
-    private void validateOnAmount(String answer, ProductBean wishProduct, CartBean cartBean, CartBean.OrderBean orderBean) throws InvocationTargetException, IllegalAccessException {
+    private void validateOnAmount(String answer, Product wishProduct, CartBean cartBean, CartBean.OrderBean orderBean) throws InvocationTargetException, IllegalAccessException {
         Map<String, Object> map = new HashMap<>();
 
         try {
             Integer amount = Integer.valueOf(answer);
-            Integer stock = wishProduct.getStock();
 
             if(amount.compareTo(0) < 1) {
                 System.out.println(AMOUNT_IS_NATURAL_NUMBER_MSG);
+            } else if(wishProduct.getCategory().equals(KLASS_NAME) && amount.compareTo(1) != 0) {
+                System.out.println(KLASS_NAME + KLASS_ONLY_ONE_IN_CART_MSG);
             } else if (wishProduct.getStock().compareTo(amount) < 0) {
                 System.out.println(AMOUNT_LESS_THAN_STOCK_MSG);
             } else {
                 BeanUtils.copyProperties(orderBean, wishProduct);
                 orderBean.setAmount(amount);
-                BeanUtils.copyProperties(wishProduct, new ProductBean());
+                BeanUtils.copyProperties(wishProduct, new Product());
+
+                //move it to the cart bean
+                CartBean.OrderBean cpBean = cartBean.new OrderBean();
+                BeanUtils.copyProperties(cpBean, orderBean);
+                BeanUtils.copyProperties(orderBean, cartBean.new OrderBean());
+                cartBean.getOrderList().add(cpBean);
             }
-
-            //move it to the cart bean
-            CartBean.OrderBean cpBean = cartBean.new OrderBean();
-            BeanUtils.copyProperties(cpBean, orderBean);
-            BeanUtils.copyProperties(orderBean, cartBean.new OrderBean());
-            cartBean.getOrderList().add(cpBean);
-
         } catch(NumberFormatException e) {
             System.out.println(AMOUNT_IS_NATURAL_NUMBER_MSG);
         }
@@ -226,16 +229,8 @@ public class Order {
      *
      * @param cartBean
      * @return boolean-value loop continue
-     * @throws IllegalAccessException
-     * @throws InstantiationException
-     * @throws IOException
-     * @throws SQLException
-     * @throws SAXException
-     * @throws ParserConfigurationException
-     * @throws InvocationTargetException
-     * @throws NoSuchFieldException
      */
-    private void executePurchase(CartBean cartBean) throws IllegalAccessException, InstantiationException, IOException, SQLException, SAXException, ParserConfigurationException, InvocationTargetException, NoSuchFieldException {
+    private void executePurchase(CartBean cartBean) {
         if(cartBean.getOrderList().size() == 0) {
             System.out.println(ORDER_PLEASE_MSG);
         }
@@ -253,42 +248,29 @@ public class Order {
     /**
      * order to the system is to be synchronized
      * @param cartBean
-     * @throws SQLException
-     * @throws NoSuchFieldException
-     * @throws InstantiationException
-     * @throws IllegalAccessException
-     * @throws InvocationTargetException
-     * @throws ParserConfigurationException
-     * @throws SAXException
      * @throws BizException
-     * @throws IOException
      */
-    synchronized private void orderExecute(CartBean cartBean) throws SQLException, NoSuchFieldException,
-            InstantiationException, IllegalAccessException, InvocationTargetException, ParserConfigurationException,
-            SAXException, BizException, IOException {
+    @Transactional
+    synchronized private void orderExecute(CartBean cartBean) throws BizException {
 
         showCartOrder(cartBean);
 
-        List<String> updateList = new ArrayList<>();
         List<Integer> idList = new ArrayList<>();
+        Map<Integer, Integer> amountMapById = new HashMap<>();
         for(CartBean.OrderBean orderBean : cartBean.getOrderList()) {
             if(!orderBean.getCategory().equals(KLASS_NAME)) {
-                Map<String, Object> sqlSetter = new HashMap<>();
-                sqlSetter.put("id", orderBean.getId());
-                sqlSetter.put("stock", orderBean.getAmount());
-                String sql = SqlXmlParserUtil.parseSqlXml("stockUpdate", sqlSetter);
-                updateList.add(sql);
+                amountMapById.put(orderBean.getId(), orderBean.getAmount());
                 idList.add(orderBean.getId());
             }
         }
-        Map<String, Object> sqlSetter = new HashMap<>();
-        sqlSetter.put("idList", idList);
         totalSum(cartBean.getOrderList());
+        findOutSoldOut(idList, cartBean);
 
-        String validateSql = SqlXmlParserUtil.parseSqlXml("selectByIdList", sqlSetter);
-        findOutSoldOut(validateSql, cartBean);
-
-        dataConnect.executeQuery(updateList);
+        List<Product> product = productRepository.findAllByIdIn(idList);
+        product.parallelStream().forEach(data -> {
+            data.setStock(data.getStock() - amountMapById.get(data.getId()));
+            productRepository.save(data);
+        });
     }
 
     private void showCartOrder(CartBean cartBean) {
@@ -322,9 +304,9 @@ public class Order {
         System.out.println(PARTITION);
     }
 
-    private void findOutSoldOut(String validateSql, CartBean cartBean) throws SQLException, NoSuchFieldException, InstantiationException, IllegalAccessException, InvocationTargetException, BizException {
-        List<ProductBean> validateList = dataConnect.fetchQuery(validateSql, new ProductBean());
-        for(ProductBean product : validateList) {
+    private void findOutSoldOut(List<Integer> idList, CartBean cartBean) throws BizException {
+        List<Product> validateList = productRepository.findAllByIdIn(idList);
+        for(Product product : validateList) {
             for (CartBean.OrderBean order : cartBean.getOrderList()) {
                 if (!order.getCategory().equals(KLASS_NAME) && order.getId().equals(product.getId())) {
                     if (order.getAmount().compareTo(product.getStock()) > 0) {
@@ -333,6 +315,14 @@ public class Order {
                     break;//avoid wasting full search
                 }
             }
+        }
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
+        if(!isTest) {
+            this.main();
+            exit(0);
         }
     }
 }

@@ -11,6 +11,7 @@ public class OrderConstants {
     public final static String CART_MSG = "주문 내역";
     public final static String TOTAL_SUM_MSG = "주문 비용";
     public final static String PURCHASE_SUM_MSG = "지불 금액";
+
     public final static String AMOUNT_UNIT_MSG = "개";
     public final static String HYPHEN_MSG = " - ";
     public final static String ORDER_PLEASE_MSG = "주문하실 상품을 입력하세요";
@@ -20,7 +21,6 @@ public class OrderConstants {
     public final static String AMOUNT_IS_NATURAL_NUMBER_MSG = "수량을 0이상의 숫자로 입력하세요";
     public final static String SOLD_OUT_MSG = "재고가 모두 소진되었습니다.";
     public final static String CHANGE_PRODUCT_MSG = "카트에 같은 물건이 있습니다. 바꾸시겠습니까? (y/n)";
-
 
     public final static String PARTITION = "--------------------------------";
     public static final String KLASS_NAME = "KLASS";

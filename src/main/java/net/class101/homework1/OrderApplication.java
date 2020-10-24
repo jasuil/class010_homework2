@@ -1,19 +1,14 @@
 package net.class101.homework1;
 
-import net.class101.homework1.exceptions.BizException;
-import org.xml.sax.SAXException;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.sql.SQLException;
 
+@SpringBootApplication
 public class OrderApplication {
 
-    public static void main(String[] args) throws IOException, InstantiationException,
-            InvocationTargetException, NoSuchFieldException, SQLException, IllegalAccessException,
-            ParserConfigurationException, SAXException, BizException {
-        Order order = new Order();
-        order.main();
+    public static void main(String[] args) {
+        SpringApplication.run(OrderApplication.class, args);
     }
+
 }
