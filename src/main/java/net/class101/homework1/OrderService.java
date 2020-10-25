@@ -58,9 +58,8 @@ public class OrderService implements CommandLineRunner {
      * @throws IOException
      * @throws InvocationTargetException
      * @throws IllegalAccessException
-     * @throws InterruptedException
      */
-    public void main() throws IOException, InvocationTargetException, IllegalAccessException, InterruptedException {
+    public void main() throws IOException, InvocationTargetException, IllegalAccessException {
 
         String answer;
 

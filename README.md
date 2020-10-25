@@ -12,6 +12,11 @@ java 1.8
 
 * folder structure\
 ```
+-------.circleci github연동 CI/CD tool
+   |
+   |---.git
+   |---.github github템플릿 폴더
+   |---gradle
 src--main
    |  |     
    |  |----java
