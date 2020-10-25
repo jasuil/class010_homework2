@@ -1,7 +1,9 @@
 package net.class101.homework1;
 
 import lombok.extern.slf4j.Slf4j;
-import net.class101.homework1.data.beans.CartBean;
+
+import net.class101.homework1.data.bean.CartBean;
+
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ import java.util.concurrent.ForkJoinPool;
 
 import static net.class101.homework1.constants.OrderConstants.*;
 
+/**
+ * repository ~ service 계층의 통합 테스트
+ */
 @Slf4j
 @SpringBootTest
 @ActiveProfiles("test")
@@ -35,8 +40,8 @@ public class OrderServiceIntegrationTest {
     }
 
     /**
-     * multi thread test
-     * expect: biz exception with SoldOutException message
+     * 동일한 상품에 3개의 주문이 동시에 실행될때 multi thread test
+     * expect: SOLD_OUT_MSG by soldOutException
      */
     @Test
     public void orderExecuteFailTest() throws ExecutionException, InterruptedException {
@@ -52,6 +57,15 @@ public class OrderServiceIntegrationTest {
             order.setName("시작에 대한 부담을 덜다. 가격 절약 아이패드 특가전");
             order.setId(60538);
             orderList.add(order);
+
+            order = cartBean.new OrderBean();
+            order.setAmount(99999);
+            order.setPrice(191600);
+            order.setCategory(KLASS_NAME);
+            order.setName("나만의 문방구를 차려요! 그리지영의 타블렛으로 굿즈 만들기");
+            order.setId(74218);
+            orderList.add(order);
+
             cartBean.setOrderList(orderList);
             cartBeanList.add(cartBean);
         }

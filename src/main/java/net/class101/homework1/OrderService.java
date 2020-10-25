@@ -1,7 +1,7 @@
 package net.class101.homework1;
 
-import net.class101.homework1.data.beans.CartBean;
-import net.class101.homework1.data.beans.Product;
+import net.class101.homework1.data.bean.CartBean;
+import net.class101.homework1.data.entity.Product;
 import net.class101.homework1.data.repository.ProductRepository;
 import net.class101.homework1.exceptions.BizException;
 
@@ -12,6 +12,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,11 +39,29 @@ public class OrderService implements CommandLineRunner {
     @Value(value = "${class.test}")
     boolean isTest;
 
-    public void main() throws IOException, InvocationTargetException, IllegalAccessException {
-
+    @PostConstruct
+    public void setUp() {
         inputstream = System.in;
         inputStreamReader = new InputStreamReader(inputstream);
         br = new BufferedReader(inputStreamReader);
+    }
+
+    @PreDestroy
+    public void destroy() throws IOException {
+        br.close();
+        inputStreamReader.close();
+        inputstream.close();
+    }
+
+    /**
+     * 주문을 선택할지 종료할지 판단하는 메서드
+     * @throws IOException
+     * @throws InvocationTargetException
+     * @throws IllegalAccessException
+     * @throws InterruptedException
+     */
+    public void main() throws IOException, InvocationTargetException, IllegalAccessException, InterruptedException {
+
         String answer;
 
         selectLoop: while (true) {
@@ -61,13 +81,18 @@ public class OrderService implements CommandLineRunner {
             }
 
         }
-        br.close();
-        inputStreamReader.close();
-        inputstream.close();
 
         System.out.println(END_MSG);
     }
 
+    /**
+     * 주문목록에서 상품을 선택하고 결제하는 인터페이스가 있는 메서드
+     * @param cartBean
+     * @return
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     * @throws IOException
+     */
     private String orderProcessor(CartBean cartBean) throws IllegalAccessException, InvocationTargetException, IOException {
         Product wishProduct = new Product();//before putting into the cart
 
@@ -93,7 +118,7 @@ public class OrderService implements CommandLineRunner {
                 break;
             }
             if(wishProduct.getId() == null) {
-                validateOnProductName(productList, answer, cartBean, orderBean, wishProduct);
+                validateOnProductName(productList, answer, cartBean, wishProduct);
             } else if(wishProduct.getId() != null) {
                 validateOnAmount(answer, wishProduct, cartBean, orderBean);
             }
@@ -102,14 +127,13 @@ public class OrderService implements CommandLineRunner {
     }
 
     /**
-     *
+     * 주문번호를 입력받았을때 유효한 정보인지 판단하는 메서드
      * @param productList all product list
      * @param answer product id
      * @param cartBean
-     * @param orderBean
-     * @param wishProduct
+     * @param wishProduct product to move into cart
      */
-    private void validateOnProductName(List<Product> productList, String answer, CartBean cartBean, CartBean.OrderBean orderBean, Product wishProduct) {
+    private void validateOnProductName(List<Product> productList, String answer, CartBean cartBean, Product wishProduct) {
 
         try {
             Integer inputId = Integer.valueOf(answer);
@@ -137,15 +161,14 @@ public class OrderService implements CommandLineRunner {
 
                 if(matchedProduct.getStock().compareTo(0) < 1) {
                     System.out.println(SOLD_OUT_MSG);
-                } else if(alreadyHave) {
+                } else if(alreadyHave) {//카트에 이미 상품을 담고 있는데 똑같은 상품을 또 담고자 한다.
                     System.out.print("\r" + CHANGE_PRODUCT_MSG);
                     answer = br.readLine();
-                    while(true) {//change already having product in wish list?
+                    while(true) {
                         if (answer.toLowerCase().equals("y")) {
-                            orderBean.setId(inputId);
                             BeanUtils.copyProperties(wishProduct, matchedProduct);
                             CartBean.OrderBean removeOrder = null;
-                            for(CartBean.OrderBean order : cartBean.getOrderList()) {
+                            for(CartBean.OrderBean order : cartBean.getOrderList()) {//카트에 있던 똑같은 상품을 비운다.
                                 if(order.getId().equals(matchedProduct.getId())) {
                                     removeOrder = order;
                                 }
@@ -158,8 +181,6 @@ public class OrderService implements CommandLineRunner {
                     }
 
                 } else {
-                    klassValidation(matchedProduct, cartBean.getOrderList());
-                    orderBean.setId(inputId);
                     BeanUtils.copyProperties(wishProduct, matchedProduct);
                 }
             }
@@ -175,6 +196,12 @@ public class OrderService implements CommandLineRunner {
 
     }
 
+    /**
+     * 상품종류가 이미 카드에 있는 KLASS인지 판단하는 메서드
+     * @param matchedProduct
+     * @param orderList
+     * @throws BizException
+     */
     private void klassValidation(Product matchedProduct, List<CartBean.OrderBean> orderList) throws BizException {
         boolean isKlassHave = orderList.stream().anyMatch(ord -> {
             if(ord.getCategory().equals(KLASS_NAME)) {
@@ -188,7 +215,7 @@ public class OrderService implements CommandLineRunner {
         }
     }
     /**
-     *
+     * 상품 수량에 대한 유효성을 판단하는 메서드
      * @param answer
      * @param wishProduct
      * @param cartBean
@@ -197,7 +224,6 @@ public class OrderService implements CommandLineRunner {
      * @throws IllegalAccessException
      */
     private void validateOnAmount(String answer, Product wishProduct, CartBean cartBean, CartBean.OrderBean orderBean) throws InvocationTargetException, IllegalAccessException {
-        Map<String, Object> map = new HashMap<>();
 
         try {
             Integer amount = Integer.valueOf(answer);
@@ -226,7 +252,7 @@ public class OrderService implements CommandLineRunner {
     }
 
     /**
-     *
+     * 결제하기 전에 유효성을 판단하는 메서드
      * @param cartBean
      * @return boolean-value loop continue
      */
@@ -246,7 +272,7 @@ public class OrderService implements CommandLineRunner {
     }
 
     /**
-     * order to the system is to be synchronized
+     * 결제하는 과정에 대한 메서드
      * @param cartBean
      * @throws BizException
      */
@@ -273,6 +299,10 @@ public class OrderService implements CommandLineRunner {
         });
     }
 
+    /**
+     * 카트에 담긴 상품내용을 보여주는 메서드
+     * @param cartBean
+     */
     private void showCartOrder(CartBean cartBean) {
         System.out.println(PARTITION);
         for(CartBean.OrderBean orderBean : cartBean.getOrderList()){
@@ -281,6 +311,10 @@ public class OrderService implements CommandLineRunner {
         System.out.println(PARTITION);
     }
 
+    /**
+     * 결제비용을 보여주는 메서드
+     * @param orderList
+     */
     private void totalSum(List<CartBean.OrderBean> orderList) {
         boolean isKlass = false;
         Integer totalFee = 0;
@@ -304,6 +338,12 @@ public class OrderService implements CommandLineRunner {
         System.out.println(PARTITION);
     }
 
+    /**
+     * 상품 매진을 판단하는 메서드
+     * @param idList
+     * @param cartBean
+     * @throws BizException
+     */
     private void findOutSoldOut(List<Integer> idList, CartBean cartBean) throws BizException {
         List<Product> validateList = productRepository.findAllByIdIn(idList);
         for(Product product : validateList) {
@@ -318,6 +358,11 @@ public class OrderService implements CommandLineRunner {
         }
     }
 
+    /**
+     * spring에서  bean을 독립적으로 실행하기 위한 호출 메서드
+     * @param args
+     * @throws Exception
+     */
     @Override
     public void run(String... args) throws Exception {
         if(!isTest) {
@@ -325,4 +370,5 @@ public class OrderService implements CommandLineRunner {
             exit(0);
         }
     }
+
 }

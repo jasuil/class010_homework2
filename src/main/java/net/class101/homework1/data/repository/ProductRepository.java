@@ -1,6 +1,6 @@
 package net.class101.homework1.data.repository;
 
-import net.class101.homework1.data.beans.Product;
+import net.class101.homework1.data.entity.Product;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 

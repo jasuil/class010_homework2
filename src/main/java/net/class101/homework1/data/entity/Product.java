@@ -1,4 +1,4 @@
-package net.class101.homework1.data.beans;
+package net.class101.homework1.data.entity;
 
 import lombok.Data;
 
